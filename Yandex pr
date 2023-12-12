@@ -1,0 +1,42 @@
+
+##На сколько процентов менялось количество постов ежемесячно с 1 сентября по 31 декабря 2008 года? Отобразите таблицу со следующими полями:
+  Номер месяца.
+  Количество постов за месяц.
+  Процент, который показывает, насколько изменилось количество постов в текущем месяце по сравнению с предыдущим.
+  Если постов стало меньше, значение процента должно быть отрицательным, если больше — положительным. Округлите значение процента до двух знаков после запятой.
+  Напомним, что при делении одного целого числа на другое в PostgreSQL в результате получится целое число, округлённое до ближайшего целого вниз. Чтобы этого избежать, переведите делимое в тип numeric.
+
+SELECT *,
+        ROUND(((cnt :: numeric / LAG(cnt) OVER (ORDER BY dt)) - 1) * 100 ,2)
+
+FROM (SELECT EXTRACT(MONTH FROM CAST(creation_date AS date)) AS dt,
+        COUNT(DISTINCT id) AS cnt
+FROM  stackoverflow.posts
+WHERE CAST(creation_date AS date) BETWEEN '2008-09-01' AND '2008-12-31'
+GROUP BY dt) AS a
+
+##Найдите пользователя, который опубликовал больше всего постов за всё время с момента регистрации. Выведите данные его активности за октябрь 2008 года в таком виде:
+  номер недели;
+  дата и время последнего поста, опубликованного на этой неделе.
+
+WITH
+last AS (SELECT  p.user_id,
+                p.creation_date,
+                EXTRACT(WEEK FROM CAST(p.creation_date AS date)) AS wn
+
+FROM stackoverflow.posts p
+
+JOIN (SELECT user_id,
+        COUNT (id)
+FROM stackoverflow.posts
+GROUP BY user_id
+ORDER BY COUNT (id) DESC
+LIMIT 1) AS u ON p.user_id = u.user_id
+
+WHERE EXTRACT(YEAR FROM CAST(p.creation_date AS date)) = 2008
+AND EXTRACT(MONTH FROM CAST(p.creation_date AS date)) = 10)
+
+SELECT DISTINCT wn,
+        MAX(creation_date) OVER (PARTITION BY wn)
+FROM last 
+ORDER BY wn
